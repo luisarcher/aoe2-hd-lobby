@@ -1,7 +1,7 @@
 """One-time interactive Steam login. Saves a refresh token to data/steam_token.json.
 
 Run it in your own terminal:  uv run login.py
-In Docker:                    docker compose run --rm lobby python login.py
+In Docker:                    docker compose run --rm aoe2hd python login.py
 """
 import getpass
 import json

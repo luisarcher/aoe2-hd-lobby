@@ -32,7 +32,7 @@ TOKEN_FILE = DATA_DIR / "steam_token.json"
 def load_token() -> dict:
     if not TOKEN_FILE.exists():
         raise SystemExit(f"No Steam token at {TOKEN_FILE}. Run `uv run login.py` first "
-                         "(Docker: `docker compose run --rm lobby python login.py`).")
+                         "(Docker: `docker compose run --rm aoe2hd python login.py`).")
     return json.loads(TOKEN_FILE.read_text(encoding="utf-8"))
 
 

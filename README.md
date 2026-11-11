@@ -10,14 +10,32 @@ with FastAPI.
 
 ## Features
 
-- **Lobbies tab**: every public lobby with title, players, RM/DM rank, average
-  ELO, map and settings; expand a row for each slot (`[ELO] name`) and raw data.
-- **Join**: opens `steam://joinlobby/...`, so Steam launches the game straight
-  into that lobby on the computer viewing the page.
-- **Matchmaking tab**: pick 1v1–4v4 and an ELO range. A room matches when its
-  title contains the mode in any common spelling (`1v1`, `1 vs 1`, `1x1`,
-  `1-v-1`…) and its average ELO is in range. New matches play a chime and pop a
-  browser notification (notifications need HTTPS or localhost).
+### Lobby list
+
+Every public lobby with title, players, RM/DM rank, average ELO and map. Search
+by title, player or map, filter by rank, and sort by title, ELO or players.
+**Join** opens `steam://joinlobby/...`, so Steam launches the game straight into
+that lobby on the computer viewing the page.
+
+![Lobbies tab listing AoE2 HD rooms with players, rank, average ELO, map and a Join button](docs/ss_lobby_room_list.png)
+
+### Game details
+
+Click a room to expand it: every slot with player name and ELO (or Open /
+Closed / AI Player), the game settings (map, size, population, speed,
+resources, ages), a link to the host's Steam profile, and all raw lobby fields.
+
+![An expanded room showing its slots and settings](docs/ss_expanding_game_details.png)
+
+### Matchmaking alerts
+
+Pick 1v1–4v4 and an ELO range. A room matches when its title contains the mode
+in any common spelling (`1v1`, `1 vs 1`, `1x1`, `1-v-1`…) and its average ELO is
+in range; full rooms are skipped. New matches play a chime and pop a browser
+notification (notifications need HTTPS or localhost). Settings are remembered
+in the browser.
+
+![Matchmaking tab with 1v1 selected, an ELO range of 1550 to 1800 and one matching room](docs/ss_matchmaking_tab.png)
 
 ## Steam login (once)
 
@@ -38,17 +56,32 @@ uv run uvicorn app:app --port 8000    # http://127.0.0.1:8000
 ## Run with Docker
 
 ```sh
-docker compose run --rm lobby python login.py   # once; writes ./data/steam_token.json
-docker compose up -d --build                    # http://127.0.0.1:8000
-docker compose logs -f
+docker compose run --rm aoe2hd python login.py   # once; writes ./data/steam_token.json
+docker compose up -d --build                     # http://127.0.0.1:8000
+docker compose logs -f aoe2hd
+docker compose down                              # stop everything
 ```
 
 Or copy an existing `data/steam_token.json` into `./data/` instead of logging in.
 On Linux hosts the container runs as uid 1000, so `./data` must be writable by it
 (`sudo chown 1000:1000 data`).
 
-Settings (environment / `.env`): `PORT` (default 8000), `AOE_REFRESH_SECONDS`
-(default 15).
+The compose file runs two containers:
+
+| Service | What |
+|---|---|
+| `aoe2hd` | The app (hostname and container name `aoe2hd`) |
+| `cloudflared-aoe2hd` | Cloudflare Tunnel that publishes the app over HTTPS, so browser notifications work remotely |
+
+Settings go in a `.env` file next to `docker-compose.yml` (git-ignored):
+
+| Variable | Default | What |
+|---|---|---|
+| `TUNNEL_TOKEN` | — | Cloudflare Tunnel token (secret; keep it out of git) |
+| `PORT` | `8000` | Host port for the app |
+| `AOE_REFRESH_SECONDS` | `15` | How often the lobby list is fetched from Steam |
+
+Without a tunnel, start only the app: `docker compose up -d aoe2hd`.
 
 ## Only one collector per token
 
