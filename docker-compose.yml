@@ -13,3 +13,11 @@ services:
       # holds steam_token.json: create it with
       #   docker compose run --rm lobby python login.py
       - ./data:/app/data
+  
+  cloudflared:
+    container_name: cloudflared
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel run
+    environment:
+      - TUNNEL_TOKEN=TUNNEL_TOKEN
