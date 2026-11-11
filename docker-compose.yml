@@ -3,6 +3,7 @@ services:
     build: .
     image: aoe2-hd-lobby:latest
     hostname: aoe2hd
+    container_name: aoe2hd
     init: true
     restart: unless-stopped
     ports:
@@ -14,8 +15,9 @@ services:
       #   docker compose run --rm lobby python login.py
       - ./data:/app/data
   
-  cloudflared:
-    container_name: cloudflared
+  cloudflared-aoe2hd:
+    hostname: cloudflared-aoe2hd
+    container_name: cloudflared-aoe2hd
     image: cloudflare/cloudflared:latest
     restart: unless-stopped
     command: tunnel run
