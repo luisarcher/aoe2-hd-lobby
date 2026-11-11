@@ -1,7 +1,8 @@
 services:
-  lobby:
+  aoe2hd:
     build: .
     image: aoe2-hd-lobby:latest
+    hostname: aoe2hd
     init: true
     restart: unless-stopped
     ports:
