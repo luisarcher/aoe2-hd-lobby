@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AoE2 HD Lobbies</title>
+<style>
+  :root { --bg:#f6f1e6; --panel:#fffaf0; --ink:#2b2418; --muted:#7a6d58; --line:#e2d6bf; --accent:#8a5a1c; --err:#a3261b; --chip:#efe4cd; --ok:#2f7a3b; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#17140f; --panel:#211c15; --ink:#efe6d4; --muted:#a39579; --line:#3a3226; --accent:#e0a95a; --err:#ff8a7a; --chip:#2e271d; --ok:#7fd38b; } }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.45 system-ui, sans-serif; }
+  main { max-width:1100px; margin:0 auto; padding:24px 16px; }
+  header { display:flex; flex-wrap:wrap; gap:8px 16px; align-items:baseline; justify-content:space-between; margin-bottom:12px; }
+  h1 { margin:0; font-size:22px; }
+  #status { color:var(--muted); font-size:13px; }
+  #status.err { color:var(--err); }
+  nav.tabs { display:flex; gap:4px; border-bottom:1px solid var(--line); margin-bottom:16px; }
+  nav.tabs button { background:none; border:none; border-bottom:2px solid transparent; padding:8px 14px; font:inherit; color:var(--muted); cursor:pointer; margin-bottom:-1px; }
+  nav.tabs button[aria-selected="true"] { color:var(--ink); border-bottom-color:var(--accent); font-weight:600; }
+  .badge { display:inline-block; min-width:18px; padding:0 5px; margin-left:6px; border-radius:9px; background:var(--accent); color:var(--panel); font-size:12px; font-weight:700; text-align:center; }
+  .badge:empty { display:none; }
+  [hidden] { display:none !important; }
+  .controls { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; align-items:center; }
+  input, select { padding:8px 10px; border:1px solid var(--line); border-radius:6px; background:var(--panel); color:var(--ink); font:inherit; }
+  input[type="search"] { flex:1; min-width:200px; }
+  button.btn { padding:8px 14px; border:1px solid var(--line); border-radius:6px; background:var(--panel); color:var(--ink); font:inherit; cursor:pointer; }
+  button.btn.primary { background:var(--accent); color:var(--panel); border-color:var(--accent); font-weight:600; }
+  .head, .lobby summary { display:grid; grid-template-columns: 1fr 64px 48px 72px minmax(0,180px) 64px; gap:12px; align-items:center; padding:10px 14px; }
+  .join { display:inline-block; text-align:center; padding:5px 0; border-radius:6px; background:var(--accent); color:var(--panel); font-weight:600; font-size:13px; text-decoration:none; }
+  .join:hover { filter:brightness(1.1); }
+  .join.full { background:var(--chip); color:var(--muted); font-weight:500; }
+  .head { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.04em; padding-top:0; padding-bottom:6px; }
+  .num { text-align:right; font-variant-numeric:tabular-nums; }
+  .lobby { background:var(--panel); border:1px solid var(--line); border-radius:8px; margin-bottom:6px; }
+  .lobby summary { cursor:pointer; list-style:none; }
+  .lobby summary::-webkit-details-marker { display:none; }
+  .title { font-weight:600; overflow-wrap:anywhere; }
+  .sub { color:var(--muted); font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .rank { font-weight:600; color:var(--accent); }
+  .body { padding:4px 14px 14px; display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:16px; border-top:1px solid var(--line); }
+  h3 { margin:8px 0 6px; font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
+  ol.slots { margin:0; padding:0; list-style:none; }
+  ol.slots li { display:flex; justify-content:space-between; gap:8px; padding:3px 0; border-bottom:1px dashed var(--line); }
+  ol.slots li.open, ol.slots li.closed { color:var(--muted); }
+  ol.slots li.ai { font-style:italic; color:var(--muted); }
+  dl.kv { margin:0; display:grid; grid-template-columns:max-content 1fr; gap:3px 14px; font-size:14px; }
+  dl.kv dt { color:var(--muted); } dl.kv dd { margin:0; overflow-wrap:anywhere; }
+  details.raw summary { cursor:pointer; color:var(--muted); font-size:13px; margin-top:8px; }
+  details.raw dl { font:12px/1.5 ui-monospace, monospace; }
+  .empty { color:var(--muted); padding:24px 0; text-align:center; }
+
+  .mm-panel { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:16px; margin-bottom:16px; display:grid; gap:14px; }
+  .field-label { font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; margin-bottom:6px; }
+  .modes { display:flex; flex-wrap:wrap; gap:6px; }
+  .modes label { display:inline-flex; align-items:center; gap:6px; padding:6px 12px; border:1px solid var(--line); border-radius:16px; cursor:pointer; user-select:none; }
+  .modes input { margin:0; accent-color:var(--accent); }
+  .modes label:has(input:checked) { border-color:var(--accent); background:var(--chip); font-weight:600; }
+  .elo { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .elo input { width:110px; }
+  .mm-actions { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  #mmState { font-size:13px; color:var(--muted); }
+  #mmState.on { color:var(--ok); font-weight:600; }
+  #mmHint { font-size:13px; color:var(--err); }
+  .mm-hit { outline:2px solid var(--accent); }
+
+  @media (max-width: 640px) {
+    .head { display:none; }
+    .lobby summary { grid-template-columns: 1fr auto auto 56px; }
+    .lobby summary .elo, .lobby summary .map { display:none; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header><h1>AoE2 HD lobbies</h1><span id="status">Loading…</span></header>
+  <nav class="tabs" role="tablist">
+    <button role="tab" id="tab-lobbies" aria-controls="panel-lobbies" aria-selected="true">Lobbies<span class="badge" id="lobbyCount"></span></button>
+    <button role="tab" id="tab-matchmaking" aria-controls="panel-matchmaking" aria-selected="false">Matchmaking<span class="badge" id="matchCount"></span></button>
+  </nav>
+
+  <section id="panel-lobbies" role="tabpanel" aria-labelledby="tab-lobbies">
+    <div class="controls">
+      <input id="q" type="search" placeholder="Search title, player, map…" aria-label="Search lobbies">
+      <select id="rank" aria-label="Ranked type">
+        <option value="">All ranks</option><option>RM</option><option>DM</option><option value="--">Unranked</option>
+      </select>
+      <select id="sort" aria-label="Sort">
+        <option value="title">Sort: title</option><option value="elo">Sort: avg Elo</option><option value="players">Sort: players</option>
+      </select>
+    </div>
+    <div class="head"><span>Game</span><span class="num">Players</span><span>Rank</span><span class="num">Avg Elo</span><span>Map</span><span></span></div>
+    <div id="list"></div>
+  </section>
+
+  <section id="panel-matchmaking" role="tabpanel" aria-labelledby="tab-matchmaking" hidden>
+    <div class="mm-panel">
+      <div>
+        <div class="field-label">Mode (matched in the lobby title)</div>
+        <div class="modes" id="modes">
+          <label><input type="checkbox" value="1">1v1</label>
+          <label><input type="checkbox" value="2">2v2</label>
+          <label><input type="checkbox" value="3">3v3</label>
+          <label><input type="checkbox" value="4">4v4</label>
+        </div>
+      </div>
+      <div>
+        <div class="field-label">ELO range (room average)</div>
+        <div class="elo">
+          <input id="eloMin" type="number" inputmode="numeric" min="0" max="4000" step="50" placeholder="min" aria-label="Minimum ELO">
+          <span>to</span>
+          <input id="eloMax" type="number" inputmode="numeric" min="0" max="4000" step="50" placeholder="max" aria-label="Maximum ELO">
+        </div>
+      </div>
+      <div class="mm-actions">
+        <button class="btn primary" id="mmToggle">Start alerts</button>
+        <button class="btn" id="mmTest">Test alert</button>
+        <span id="mmState">Alerts off</span>
+      </div>
+      <div id="mmHint" hidden></div>
+    </div>
+    <div class="head"><span>Matching rooms</span><span class="num">Players</span><span>Rank</span><span class="num">Avg Elo</span><span>Map</span><span></span></div>
+    <div id="matches"></div>
+  </section>
+</main>
+<script src="/static/match.js"></script>
+<script>
+let data = { lobbies: [] };
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+
+/* ---------- tabs ---------- */
+function showTab(name) {
+  for (const t of ["lobbies", "matchmaking"]) {
+    $(`tab-${t}`).setAttribute("aria-selected", String(t === name));
+    $(`panel-${t}`).hidden = t !== name;
+  }
+  store.set("tab", name);
+}
+$("tab-lobbies").onclick = () => showTab("lobbies");
+$("tab-matchmaking").onclick = () => showTab("matchmaking");
+showTab(store.get("tab", "lobbies"));
+
+/* ---------- lobby rows ---------- */
+const APPID = 221380;
+// steam://joinlobby/<appid>/<lobby steamid>/<host steamid> makes Steam start the game and join
+const joinUrl = l => `steam://joinlobby/${APPID}/${l.id}` + (l.host_steamid ? `/${l.host_steamid}` : "");
+
+// a click on Join shouldn't also expand the row
+document.addEventListener("click", e => {
+  const a = e.target.closest("summary a.join");
+  if (a) { e.preventDefault(); window.location.href = a.href; }
+});
+
+function slotHtml(p) {
+  const elo = p.elo != null ? `<span class="num">${p.elo}</span>` : "";
+  return `<li class="${p.kind}"><span>${esc(p.name)}</span>${elo}</li>`;
+}
+
+function kv(pairs) {
+  return `<dl class="kv">${pairs.filter(([,v]) => v != null && v !== "").map(([k,v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>`;
+}
+
+const isFull = l => l.filled != null && l.filled >= l.slots;
+
+function lobbyHtml(l, open) {
+  return `
+    <details class="lobby" data-id="${l.id}" ${open.has(l.id) ? "open" : ""}>
+      <summary>
+        <span><div class="title">${esc(l.title)}</div><div class="sub">${esc([l.game_type, l.mod].filter(Boolean).join(" · "))}</div></span>
+        <span class="num">${l.filled ?? "?"}/${l.slots}</span>
+        <span class="rank">${esc(l.rank ?? "")}</span>
+        <span class="num elo">${l.avg_elo ?? "—"}</span>
+        <span class="sub map">${esc(l.map ?? "")}</span>
+        ${isFull(l)
+          ? `<span class="join full" title="Lobby is full">Full</span>`
+          : `<a class="join" href="${joinUrl(l)}" title="Launch AoE2 HD through Steam and join this lobby">Join</a>`}
+      </summary>
+      <div class="body">
+        <div><h3>Slots</h3><ol class="slots">${l.players.map(slotHtml).join("")}</ol></div>
+        <div><h3>Settings</h3>${kv([
+          ["Game", l.game_type], ["Map", l.map], ["Map style", l.map_style], ["Map size", l.map_size],
+          ["Population", l.pop], ["Speed", l.speed], ["Resources", l.resources],
+          ["Ages", l.start_age && `${l.start_age} → ${l.end_age}`], ["Mod", l.mod],
+          ["Lobby Elo", l.lobby_elo], ["Cheats", l.cheats ? "On" : null]
+        ])}
+        ${l.host_steamid ? `<p><a href="https://steamcommunity.com/profiles/${esc(l.host_steamid)}" target="_blank" rel="noopener">Host's Steam profile ↗</a></p>` : ""}
+        <details class="raw"><summary>All raw fields</summary>${kv(Object.entries(l.raw).sort(([a],[b]) => a.localeCompare(b)))}</details>
+        </div>
+      </div>
+    </details>`;
+}
+
+function renderList(el, rows, emptyText) {
+  if (!rows.length) { el.innerHTML = `<div class="empty">${emptyText}</div>`; return; }
+  const open = new Set([...el.querySelectorAll("details.lobby[open]")].map(d => d.dataset.id));
+  el.innerHTML = rows.map(l => lobbyHtml(l, open)).join("");
+}
+
+function textMatch(l, q) {
+  if (!q) return true;
+  const hay = [l.title, l.map, l.game_type, l.mod, ...l.players.map(p => p.name)].join(" ").toLowerCase();
+  return hay.includes(q);
+}
+
+function renderLobbies() {
+  const q = $("q").value.trim().toLowerCase(), rank = $("rank").value, sort = $("sort").value;
+  let rows = data.lobbies.filter(l => textMatch(l, q) && (!rank || l.rank === rank));
+  if (sort === "elo") rows.sort((a, b) => (b.avg_elo ?? 0) - (a.avg_elo ?? 0));
+  if (sort === "players") rows.sort((a, b) => (b.filled ?? 0) - (a.filled ?? 0));
+  renderList($("list"), rows, data.lobbies.length ? "No lobbies match." : "No lobbies.");
+  $("lobbyCount").textContent = data.lobbies.length || "";
+}
+["q", "rank", "sort"].forEach(id => $(id).addEventListener("input", renderLobbies));
+
+/* ---------- matchmaking ---------- */
+const mm = {
+  watching: store.get("mm.watching", false),
+  notified: new Set(),   // lobby ids already alerted for the current criteria
+  audio: null,
+};
+
+function criteria() {
+  const modes = [...$("modes").querySelectorAll("input:checked")].map(i => Number(i.value));
+  const num = id => { const v = $(id).value.trim(); return v === "" ? null : Number(v); };
+  return { modes, eloMin: num("eloMin"), eloMax: num("eloMax") };
+}
+
+function loadCriteria() {
+  const c = store.get("mm.criteria", { modes: [], eloMin: null, eloMax: null });
+  $("modes").querySelectorAll("input").forEach(i => { i.checked = c.modes.includes(Number(i.value)); });
+  $("eloMin").value = c.eloMin ?? "";
+  $("eloMax").value = c.eloMax ?? "";
+}
+
+function onCriteriaChange() {
+  store.set("mm.criteria", criteria());
+  mm.notified.clear();         // new search: alert again for anything that matches it
+  renderMatches(false);
+}
+$("modes").addEventListener("change", onCriteriaChange);
+["eloMin", "eloMax"].forEach(id => $(id).addEventListener("input", onCriteriaChange));
+
+function currentMatches() {
+  const c = criteria();
+  return data.lobbies.filter(l => !isFull(l) && Matchmaking.matchLobby(l, c));
+}
+
+function describeCriteria(c) {
+  const modes = c.modes.map(n => `${n}v${n}`).join("/") || "no mode";
+  const range = c.eloMin != null || c.eloMax != null ? `${c.eloMin ?? "any"}–${c.eloMax ?? "any"}` : "any ELO";
+  return `${modes}, ${range}`;
+}
+
+function renderMatches(allowAlert) {
+  const c = criteria();
+  const rows = currentMatches().sort((a, b) => (b.avg_elo ?? 0) - (a.avg_elo ?? 0));
+  const empty = !c.modes.length ? "Pick at least one mode." : `No open rooms for ${esc(describeCriteria(c))} right now.`;
+  renderList($("matches"), rows, empty);
+  $("matchCount").textContent = rows.length || "";
+  document.title = rows.length ? `(${rows.length}) AoE2 HD Lobbies` : "AoE2 HD Lobbies";
+
+  const fresh = rows.filter(l => !mm.notified.has(l.id));
+  rows.forEach(l => mm.notified.add(l.id));
+  if (allowAlert && mm.watching && fresh.length) alertMatches(fresh);
+}
+
+function updateWatchUi() {
+  $("mmToggle").textContent = mm.watching ? "Stop alerts" : "Start alerts";
+  $("mmState").textContent = mm.watching ? "Alerts on: sound + notification" : "Alerts off";
+  $("mmState").className = mm.watching ? "on" : "";
+  const hints = [];
+  if (mm.watching && !("Notification" in window)) hints.push("This browser doesn't support notifications.");
+  else if (mm.watching && !window.isSecureContext) hints.push("Browser notifications need HTTPS (or localhost); only the sound will play.");
+  else if (mm.watching && Notification.permission === "denied") hints.push("Notifications are blocked for this site — allow them in the browser's site settings.");
+  if (mm.watching && mm.audio?.state !== "running") hints.push("Click anywhere on the page once to enable the sound.");
+  $("mmHint").textContent = hints.join(" ");
+  $("mmHint").hidden = !hints.length;
+}
+
+function unlockAudio() {
+  try {
+    mm.audio ??= new (window.AudioContext || window.webkitAudioContext)();
+    if (mm.audio.state !== "running") mm.audio.resume().then(updateWatchUi, () => {});
+  } catch {}
+}
+document.addEventListener("pointerdown", () => { if (mm.watching) unlockAudio(); updateWatchUi(); }, { capture: true });
+
+function chime() {
+  const ctx = mm.audio;
+  if (!ctx || ctx.state !== "running") return;
+  const t0 = ctx.currentTime;
+  [[659.25, 0], [880, 0.16], [1318.5, 0.32]].forEach(([freq, at]) => {
+    const osc = ctx.createOscillator(), gain = ctx.createGain();
+    osc.type = "triangle"; osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.0001, t0 + at);
+    gain.gain.exponentialRampToValueAtTime(0.35, t0 + at + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + at + 0.45);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(t0 + at); osc.stop(t0 + at + 0.5);
+  });
+}
+
+function notify(lobbies) {
+  if (!("Notification" in window) || Notification.permission !== "granted") return;
+  const first = lobbies[0];
+  const title = lobbies.length === 1 ? `Match found: ${first.title}` : `${lobbies.length} matching rooms`;
+  const body = lobbies.slice(0, 4).map(l => `${l.title} — avg ${l.avg_elo}, ${l.filled}/${l.slots}`).join("\n");
+  const n = new Notification(title, { body, tag: "aoe2-match", renotify: true });
+  n.onclick = () => { window.focus(); showTab("matchmaking"); n.close(); };
+}
+
+function alertMatches(lobbies) {
+  chime();
+  notify(lobbies);
+}
+
+$("mmToggle").onclick = async () => {
+  mm.watching = !mm.watching;
+  store.set("mm.watching", mm.watching);
+  if (mm.watching) {
+    unlockAudio();
+    if ("Notification" in window && Notification.permission === "default") {
+      try { await Notification.requestPermission(); } catch {}
+    }
+    mm.notified.clear();
+    renderMatches(true);   // alert right away if something already matches
+  }
+  updateWatchUi();
+};
+
+$("mmTest").onclick = async () => {
+  unlockAudio();
+  if ("Notification" in window && Notification.permission === "default") {
+    try { await Notification.requestPermission(); } catch {}
+  }
+  alertMatches([{ title: "Test 1v1 room", avg_elo: 1700, filled: 1, slots: 2 }]);
+  updateWatchUi();
+};
+
+/* ---------- polling ---------- */
+let loaded = false;
+async function refresh() {
+  const st = $("status");
+  try {
+    data = await (await fetch("/api/lobbies", { cache: "no-store" })).json();
+    const when = data.updated ? new Date(data.updated * 1000).toLocaleTimeString() : "never";
+    st.textContent = data.error ? `${data.error} (last update ${when})` : `${data.lobbies.length} lobbies · updated ${when}`;
+    st.className = data.error ? "err" : "";
+    renderLobbies();
+    // rooms already matching when the page opens count as seen, so a reload doesn't re-alert
+    renderMatches(loaded);
+    loaded = true;
+  } catch (e) { st.textContent = "Can't reach the server"; st.className = "err"; }
+}
+
+// Ticks come from a worker: browsers slow page timers to ~1/min in background tabs,
+// which would delay alerts. Worker timers keep running.
+function startTicker(ms, fn) {
+  try {
+    const src = `setInterval(() => postMessage(0), ${ms});`;
+    const w = new Worker(URL.createObjectURL(new Blob([src], { type: "text/javascript" })));
+    w.onmessage = fn;
+  } catch { setInterval(fn, ms); }
+}
+
+loadCriteria();
+updateWatchUi();
+refresh();
+startTicker(5000, refresh);
+</script>
+</body>
+</html>

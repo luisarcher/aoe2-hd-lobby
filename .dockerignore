@@ -1,0 +1,9 @@
+.git
+.venv
+data
+**/__pycache__
+*.pyc
+static/match.test.js
+Dockerfile
+docker-compose.yml
+.dockerignore

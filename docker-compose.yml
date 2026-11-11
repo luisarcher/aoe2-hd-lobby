@@ -1,0 +1,14 @@
+services:
+  lobby:
+    build: .
+    image: aoe2-hd-lobby:latest
+    init: true
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8000}:8000"
+    environment:
+      AOE_REFRESH_SECONDS: "${AOE_REFRESH_SECONDS:-15}"
+    volumes:
+      # holds steam_token.json: create it with
+      #   docker compose run --rm lobby python login.py
+      - ./data:/app/data

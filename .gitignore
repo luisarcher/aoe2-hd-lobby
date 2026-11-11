@@ -218,3 +218,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# App runtime data: contains the Steam login token. Never commit.
+data/
+
